@@ -1,0 +1,208 @@
+import sklearn
+import keras
+from keras.preprocessing.image import ImageDataGenerator
+#from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint
+
+#from keras.layers.normalization import BatchNormalization
+from keras.regularizers import l2
+from keras.utils.np_utils import normalize
+from keras.models import Sequential,Model
+from keras.layers import Dense,Dropout,Flatten
+from keras.layers import Conv2D,Activation,MaxPooling2D
+
+from keras.layers import Concatenate
+from keras import Input
+from keras.callbacks import ModelCheckpoint
+from tensorflow.keras.optimizers import Adam
+
+
+
+from tensorflow.keras.layers import BatchNormalization
+train_data_path='Downloads\\train'
+test_data_path='Downloads\\test_data'
+training_datagen=ImageDataGenerator(rescale=1./255,rotation_range=40,width_shift_range=0.2,height_shift_range=0.2,shear_range=0.2,
+                                   zoom_range=0.2,horizontal_flip=True,fill_mode='nearest')
+training_data=training_datagen.flow_from_directory(train_data_path,target_size=(150,150),batch_size=32,class_mode='binary')
+training_data.class_indices
+validation_data_path='Downloads\\validation'
+valid_datagen = ImageDataGenerator(rescale=1./255)
+ 
+valid_data =  valid_datagen.flow_from_directory(validation_data_path, 
+                                      target_size=(150, 150), 
+                                      batch_size=32,
+                                      class_mode='binary')
+import matplotlib.pyplot as plt
+def plotImages(images_arr):
+    fig, axes = plt.subplots(1, 5, figsize=(20, 20))
+    axes = axes.flatten()
+    for img, ax in zip(images_arr, axes):
+        ax.imshow(img)
+    plt.tight_layout()
+    plt.show()
+ 
+images = [training_data[0][0][0] for i in range(5)]
+plotImages(images)
+cnn_model = keras.models.Sequential([
+                                    keras.layers.Conv2D(filters=32, kernel_size=7, input_shape=[150, 150, 3],kernel_regularizer=l2(l=0.01)),
+                                    BatchNormalization(),
+                                    keras.layers.MaxPooling2D(pool_size=(2,2)),
+                                      
+                                    keras.layers.Conv2D(filters=64, kernel_size=5),
+                                    BatchNormalization(),
+                                    keras.layers.MaxPooling2D(pool_size=(2,2)),
+                                      
+                                    keras.layers.Conv2D(filters=128, kernel_size=3),
+                                    BatchNormalization(),
+                                    keras.layers.MaxPooling2D(pool_size=(2,2)),
+                                                                          
+                                    keras.layers.Conv2D(filters=256, kernel_size=3),
+                                    BatchNormalization(),
+                                    keras.layers.MaxPooling2D(pool_size=(2,2)),
+                                                                      
+                                    keras.layers.Flatten(), # neural network beulding
+                                    keras.layers.Dense(units=128, activation='relu'), # input layers
+                                    BatchNormalization(),
+                                    keras.layers.Dropout(0.5),                                      
+                                    keras.layers.Dense(units=256, activation='relu'),  
+                                    BatchNormalization(),                                  
+                                    keras.layers.Dropout(0.5),                                    
+                                    keras.layers.Dense(units=2, activation='softmax') # output layer
+])
+
+cnn_model.compile(optimizer = Adam(lr=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+ 
+model_path = 'Downloads//model path//Normal_or_Tuber_predictor.h5'
+checkpoint = ModelCheckpoint(model_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+callbacks_list = [checkpoint]
+ 
+# train cnn model
+history = cnn_model.fit(training_data, 
+                          epochs=20, 
+                          verbose=1, 
+                          validation_data= valid_data,
+                          callbacks=callbacks_list)
+
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+"""# Import Model"""
+ 
+model_path1 = 'Downloads\\New model path\\Normal_or_Tuber_predictor.h5'
+
+model1 = keras.models.load_model(model_path1)
+import numpy as np
+from keras.preprocessing import image
+ 
+def pred_Normal_Tuber(model, Normal_or_Tuberculosis):
+                                          test_image = image.load_img(Normal_or_Tuberculosis, target_size = (150, 150))
+                                          test_image = image.img_to_array(test_image)/255
+                                          test_image = np.expand_dims(test_image, axis = 0)
+
+                                          result = model.predict(test_image).round(3)
+
+                                          pred = np.argmax(result)
+                                          print(result, "--->>>", pred)
+
+                                          if pred == 0:
+                                            print('Predicted>>> Normal')
+                                          else:
+                                            print('Predicted>>> Tuberculosis')
+def new_pred_Normal_Tuber(model, Normal_or_Tuberculosis):
+                                          test_image = image.load_img(Normal_or_Tuberculosis, target_size = (150, 150))
+                                          test_image = image.img_to_array(test_image)/255
+                                          test_image = np.expand_dims(test_image, axis = 0)
+
+                                          result = model.predict(test_image).round(3)
+
+                                          pred = np.argmax(result)
+                                          return pred
+
+
+original1=[0 for i in range(75,406)]
+print(original1)
+
+original2=[1 for i in range(4,74)]
+print(original2)
+
+original=original1+original2
+print(original)
+import os
+path=[]
+predval1=[]
+predval2=[]
+for i in range(75,406):
+    
+
+      #newdatapath='Downloads//MLtest//Normal-75.png'
+    newdatapath=f'Downloads//MLtest//Normal-{i}.png'
+    
+
+    value=new_pred_Normal_Tuber(model1,newdatapath)
+    predval1.append(value)
+print(predval1)     
+for i in range (4,74):
+    
+    newdatapath=f'Downloads//MLtest//Tuberculosis-{i}.png'
+    
+
+    value=new_pred_Normal_Tuber(model1,newdatapath)
+    predval2.append(value)
+print(predval2)  
+
+predval=predval1+predval2
+print(predval)
+from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix , classification_report
+import pandas as pd
+def print_confusion_matrix(confusion_matrix, class_names, figsize = (10,7), fontsize=14):
+    """Prints a confusion matrix, as returned by sklearn.metrics.confusion_matrix, as a heatmap.
+    
+    Arguments
+    ---------
+    confusion_matrix: numpy.ndarray
+        The numpy.ndarray object returned from a call to sklearn.metrics.confusion_matrix. 
+        Similarly constructed ndarrays can also be used.
+    class_names: list
+        An ordered list of class names, in the order they index the given confusion matrix.
+    figsize: tuple
+        A 2-long tuple, the first value determining the horizontal size of the ouputted figure,
+        the second determining the vertical size. Defaults to (10,7).
+    fontsize: int
+        Font size for axes labels. Defaults to 14.
+        
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The resulting confusion matrix figure
+    """
+    df_cm = pd.DataFrame(
+        confusion_matrix, index=class_names, columns=class_names, 
+    )
+    fig = plt.figure(figsize=figsize)
+    try:
+        heatmap = sns.heatmap(df_cm, annot=True, fmt="d")
+    except ValueError:
+        raise ValueError("Confusion matrix values must be integers.")
+    heatmap.yaxis.set_ticklabels(heatmap.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=fontsize)
+    heatmap.xaxis.set_ticklabels(heatmap.xaxis.get_ticklabels(), rotation=45, ha='right', fontsize=fontsize)
+    plt.ylabel('Truth')
+    plt.xlabel('Prediction')
+cm = confusion_matrix(original,predval)
+print_confusion_matrix(cm,['1','0'])
+
+
+print(classification_report(original,predval))
